@@ -1,39 +1,46 @@
 const moviesService = require("./movies.service");
 const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
 
-async function list(req, res, next) {
-  try {
-    let data;
-
-    if (req.query.is_showing === "true") {
-      // If is_showing=true is provided, filter movies based on movies_theaters table
-      data = await moviesService.listShowing();
-    } else {
-      data = await moviesService.list();
-    }
-
-    res.json({ data });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function movieExists(req, res, next) {
+const movieExists = async (req, res, next) => {
   const movie = await moviesService.read(req.params.movieId);
   if (movie) {
     res.locals.movie = movie;
     return next();
   }
-  next({ status: 404, message: `Movie cannot be found.` });
-}
+    next({ status: 404, message: "Movie cannot be found." });
+};
 
-function read(req, res, next) {
-  const { product: data } = res.locals;
-  res.json({ data });
-}
+const read = async (req, res) => {
+  const movie = res.locals.movie.movie_id;
+  res.json({ data: await moviesService.read(movie) });
+};
 
+const readTheatersByMovie = async (req, res, next) => {
+  const movie = res.locals.movie.movie_id;
+  res.json({ data: await moviesService.readTheatersByMovie(movie) });
+};
+
+const readReviewsByMovie = async (req, res, next) => {
+  const movie = res.locals.movie.movie_id;
+  res.json({ data: await moviesService.readReviewsByMovie(movie) });
+};
+
+const list = async (req, res, next) => { 
+  if (req.query.is_showing === "true") {
+      res.json({ data: await moviesService.listMoviesCurrentlyShowing() });
+  }
+  res.json({ data: await moviesService.list() });
+};
 
 module.exports = {
-    read: [asyncErrorBoundary(movieExists), read],
-    list: asyncErrorBoundary(list),
+  list: asyncErrorBoundary(list),
+  read: [asyncErrorBoundary(movieExists), read],
+  readTheatersByMovie: [
+    asyncErrorBoundary(movieExists),
+    asyncErrorBoundary(readTheatersByMovie),
+  ],
+  readReviewsByMovie: [
+    asyncErrorBoundary(movieExists),
+    asyncErrorBoundary(readReviewsByMovie),
+  ],
 };
